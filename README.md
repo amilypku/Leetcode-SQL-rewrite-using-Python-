@@ -162,6 +162,151 @@ having count(rn)>=3;
 python 
 ```python
 #translating window function
+Logs['rn'] = Logs['Id'].rank(method = 'first') 
+Logs['rn1'] = Logs.groupby(['Num'])['Id'].rank(method = 'first')
+Logs['dif'] = Logs['rn']-Logs['rn1']
+Logs1 = Logs.groupby(['dif', 'Num'])['dif'].count().to_frame('count').reset_index()
+Logs1[Logs1['count'] >= 3]['Num'].drop_duplicates()
 
+#transating the three tables join
+#？？？
+```
 
+# 181. Employees Earning More Than Their Managers
+
+sql
+```sql
+select e2.Name as Employee
+from Employee e1 join Employee e2 on e1.Id = e2.ManagerId and e1.Salary < e2.Salary
+```
+
+python
+```python
+```
+
+# 182. Duplicate Emails
+sql
+```sql
+select Email
+from Person
+group by Email
+having count(*) > 1
+```
+python
+```python
+New = Person.groupby(['Email'])['Id'].count().to_frame('count').reset_index()
+New[New['count'] > 1]['Email']
+```
+# 183. Customers Who Never Order
+sql
+```sql
+select c.Name as Customers 
+from Customers c 
+left join Orders o on o.CustomerId = c.Id 
+where o.Id is null
+```
+
+python
+```python
+new_df = pd.merge(Customers, Orders,  how='left', left_on=['id'], right_on = ['id'], suffixes = ('_t1','_t2'))
+new_df[new_df['id_t2'] is null]['Name']
+```
+# 184. Department Highest Salary
+sql
+```sql
+select D.Name as Department, E.Name as Employee, E.Salary
+from (select *,
+        dense_rank() over (partition by DepartmentId order by Salary desc) as rn
+        from Employee) E join 
+        Department D on E.DepartmentId = D.Id
+where rn = 1
+order by E.Salary
+
+#v2:
+select d.Name Department,e.Name Employee,Salary
+from  Employee e
+join Department d 
+on e.DepartmentId=d.Id
+where(e.DepartmentId , Salary) IN(
+    select DepartmentId, max(salary)
+    from Employee
+    group by DepartmentId
+);
+```
+
+python 
+```python
+Employee = Employee.groupby(['DepartmentId'])['Salary'].rank(method = 'dense', ascending = 0)
+dat = pd.merge(Employee, Department, how = 'inner', left_on = 'DepartmentId', right_on = 'Id',suffixes = ('_t1','_t2'))
+result = dat[dat['rn'] = 1][['Name_t2','Name_t1','Salary']]
+result.columns = ['Department', 'Employee','Salary']
+```
+
+# 185. Department Top Three Salaries
+sql
+```sql
+select D.Name as Department, E.Name as Employee, E.Salary
+from (select *,
+        dense_rank() over (partition by DepartmentId order by Salary desc) as rn
+        from Employee) E join 
+        Department D on E.DepartmentId = D.Id
+where rn <= 3
+order by E.Salary
+```
+
+python
+```python
+Employee = Employee.groupby(['DepartmentId'])['Salary'].rank(method = 'dense', ascending = 0)
+dat = pd.merge(Employee, Department, how = 'inner', left_on = 'DepartmentId', right_on = 'Id',suffixes = ('_t1','_t2'))
+result = dat[dat['rn'] <= 3][['Name_t2','Name_t1','Salary']]
+result.columns = ['Department', 'Employee','Salary']
+```
+
+# 196. Delete Duplicate Emails
+sql
+```sql
+DELETE p1 FROM Person p1,
+    Person p2
+WHERE
+    p1.Email = p2.Email AND p1.Id > p2.Id
+    
+#v2: not in subquery
+DELETE from Person 
+Where Id not in (
+    Select Id 
+    From(
+    Select MIN(Id) as id
+    From Person 
+    Group by Email
+   ) t
+)
+```
+
+python
+```python
+P1 = Person.groupby(['Email'])['Id'].min().to_frame('id').reset_index()
+Person[~Person.Id.isin(P1['id'])] 
+#should be Person.Id since isin need series type
+#.isin(P1['id']) should be P1['id'] since inside isin need list type
+```
+
+# 197. Rising Temperature
+sql
+```sql
+select w1.Id
+from Weather w1, Weather w2
+where dateDiff(w1.RecordDate,w2.RecordDate) = 1 
+ and w1.Temperature > w2.Temperature
+```
+
+python 
+```python
+#datediff in python
+from datetime import datetime
+
+def daysdiff(d1, d2):
+    d1 = datetime.strptime(d1, "%Y-%m-%d")
+    d2 = datetime.strptime(d2, "%Y-%m-%d")
+    return (d1 - d2).days
+```
 

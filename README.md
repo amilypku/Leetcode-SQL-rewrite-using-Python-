@@ -310,3 +310,161 @@ def daysdiff(d1, d2):
     return (d1 - d2).days
 ```
 
+# 262. Trips and Users
+sql
+```sql
+SELECT
+    request_at 'Day', round(avg(Status!='completed'), 2) 'Cancellation Rate'
+FROM 
+    trips t JOIN users u1 ON (t.client_id = u1.users_id AND u1.banned = 'No')
+    JOIN users u2 ON (t.driver_id = u2.users_id AND u2.banned = 'No')
+WHERE	
+    request_at BETWEEN '2013-10-01' AND '2013-10-03'
+GROUP BY 
+    request_at
+```
+
+Python
+```python
+Trips = Trips[~Trips.Client_Id.isin.User[User['Banned'] == 'Yes']['Users_Id']]
+Trips = Trips[~Trips.Driver_Id.isin.User[User['Banned'] == 'Yes']['Users_Id']]
+Trips = Trips[(Trips.Request_at >= '2013-10-01') & (Trips.Request_at <= '2013-10-03')]
+#case when 
+Trips.Status[Trips.Status == 'Completed'] = 0
+Trips.Status[Trips.Status != 'Completed'] = 1
+dat = Trips.groupby('Request_at').agg({'sum':sum, 'count': count}).to_frame().reset_index
+dat['Cancellation Rate'] = round(dat.sum/dat.count,2)
+```
+
+# 595. Big Countries
+sql
+```sql
+select name, population, area
+from World
+where area > 3000000 or population > 25000000
+order by name
+```
+python
+```python
+world = World[(world['area'] > 3000000) or (world['population'] > 25000000)]
+world.sort_values(by=[‘name’])
+```
+# 596. Classes More Than 5 Students
+sql
+```sql
+select class 
+from courses 
+group by class 
+having count(distinct(student)) >= 5
+```
+python
+```python
+dat = courses.groupby(['class'])['student'].nunique().to_frame('count').reset_index
+dat[dat['count'] >= 5]['class']
+```
+# 601. Human Traffic of Stadium
+sql
+```sql
+select
+	id, visit_date, people
+from
+	(select
+		id, visit_date, people,
+		count(*) over (partition by offset) cnt
+	from
+		(select
+			id, visit_date, people,
+			(row_number() over (order by id) - id) offset
+		from stadium
+		where people >= 100
+		) R--get consecutive id
+	) R1
+where cnt >= 3   
+order by id
+```
+python
+```python 
+dat = stadium[stadium['people'] >= 100]
+dat['rn'] = dat.rank(method = 'first')
+dat['offset'] = dat['rn'] - dat['id']
+dat1 = dat.groupby(['offset']).count().to_frame('count').reset_index
+data = pd.merge(dat, dat1, how = 'left', left_on = 'offset', right_on = 'offset')
+data[data['count'] >= 3].sort_values(by=[‘id’])
+```
+
+# 620. Not Boring Movies
+sql
+```sql
+select *
+from cinema
+where id % 2 <> 0 and description <> 'boring'
+order by rating desc
+```
+
+python
+```python
+cinema[(cinema['id'] % 2 != 0) & (cinema['description'] != 'boring')].sort_value(by = ['rating'], ascending = 0)
+```
+
+# 626. Exchange Seats
+sql
+```sql
+select 
+    if(id%2=0,
+        id-1,
+        if(id=(select count(distinct id) from seat),
+            id,
+            id+1)) 
+    as id,student 
+from seat 
+order by id
+```
+这道题目实际上很简单
+查询id和student
+
+若id是偶数，减1
+若id是奇数，加1
+问题在于当总数为奇数时，最后一个id应保持不变，加1会导致空出一位。那么我们找到最后一位，让它保持不变就可以了。
+
+作者：fan-lu-5
+链接：https://leetcode-cn.com/problems/exchange-seats/solution/jian-dan-yi-dong-xiao-lu-ji-bai-suo-you-by-fan-lu-/
+来源：力扣（LeetCode）
+著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。
+
+```sql
+SELECT
+    (CASE
+        WHEN MOD(id, 2) != 0 AND counts != id THEN id + 1 --mod is to get remaider
+        WHEN MOD(id, 2) != 0 AND counts = id THEN id
+        ELSE id - 1
+    END) AS id,
+    student
+FROM
+    seat,
+    (SELECT
+        COUNT(*) AS counts
+    FROM
+        seat) AS seat_counts
+ORDER BY id ASC;
+```
+```python
+```
+
+# 627. Swap Salary
+sql
+```sql
+UPDATE salary
+SET sex = if(sex='m','f','m')
+```
+
+python
+```python 
+salary.sex[salary.sex == 'm'] = 'f'
+salary.sex[salary.sex == 'f'] = 'm'
+```
+
+
+
+
+
+

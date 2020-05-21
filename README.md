@@ -335,6 +335,92 @@ Trips.Status[Trips.Status != 'Completed'] = 1
 dat = Trips.groupby('Request_at').agg({'sum':sum, 'count': count}).to_frame().reset_index
 dat['Cancellation Rate'] = round(dat.sum/dat.count,2)
 ```
+# 511. Game Play Analysis I
+sql
+```
+select player_id, event_date as first_login
+from (select *,
+        row_number() over (partition by player_id order by event_date) as rn 
+        from Activity) S 
+where rn = 1
+```
+
+python
+```python
+dat = Activity.groupby(['player_id'])['event_date'].rank(method = first)
+dat[dat['rn'] == 1][['player_id', 'event_date']]
+```
+
+# 512. Game Play Analysis II
+sql
+```sql
+select player_id, device_id
+from activity
+where (player_id, event_date) in 
+(select player_id, min(event_date)
+from activity
+group by player_id)
+```
+
+# 569. Median Employee Salary
+sql
+```sql
+SELECT Id, Company, Salary FROM
+(SELECT Id, Company, Salary, COUNT(Salary) OVER (PARTITION BY Company) AS CN,
+ROW_NUMBER() OVER (PARTITION BY Company ORDER BY Salary) AS RN FROM Employee) T
+WHERE RN = (CN+1)/2 OR RN = (CN+2)/2
+```
+
+
+# 534. Game Play Analysis III
+sql
+```sql
+select A1.player_id, A1.event_date, sum(A2.games_played) as games_played_so_far
+from Activity A1 left join Activity A2 on A1.player_id = A2.player_id and A1.event_date >= A2.event_date
+group by A1.player_id, A1.event_date
+order by A1.player_id, A1.event_date
+```
+python
+Perform an asof merge. This is similar to a left-join except that we match on nearest key rather than equal keys.
+
+```python
+
+```
+
+# 550. Game Play Analysis IV
+sql
+```sql
+--注意这道题求的是首日注册后第二天连续登录的.不是任意两天连续登录就行.
+#V1:
+select round((select count(distinct(A1.player_id))
+from (select player_id, min(event_date) as event_date from Activity group by player_id) A1 join Activity A2 on A1.player_id = A2.player_id and datediff(A2.event_date, A1.event_date) = 1)/count(distinct player_id),2) as fraction
+from Activity
+
+#V2:得出所有玩家次日登录时间，看原数据中是否存在，统计存在的个数，除以总人数。
+SELECT
+	ROUND(COUNT(DISTINCT player_id)/(SELECT COUNT(distinct player_id) FROM Activity), 
+	2) AS fraction
+FROM
+    Activity
+WHERE
+	(player_id,event_date)
+	IN
+	(SELECT 
+        player_id,
+        Date(min(event_date)+1)
+	FROM Activity
+	GROUP BY player_id);
+```
+python
+```python
+A1 = Activity.groupby(['player_id'])['event_date'].min().to_frame('Date').reset_index()
+A1['date1'] = A1['Date'].apply(lambda x: datetime.strptime(x, '%Y%m%d'))
+A1['Date1']= A1['Date'] +  timedelta(days=1)
+index1 = pd.MultiIndex.from_arrays([A1[col] for col in ['player_id','Date1']])
+index2 = pd.MultiIndex.from_arrays([Activity[col] for col in ['player_id','event_date']])
+New = Activity.loc[index2.isin(index1)]
+fraction = round(New.player_id.nunique()/Activity.player_id.nunique(),2)
+#
 
 # 595. Big Countries
 sql

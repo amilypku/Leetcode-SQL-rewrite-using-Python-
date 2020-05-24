@@ -362,14 +362,7 @@ from activity
 group by player_id)
 ```
 
-# 569. Median Employee Salary
-sql
-```sql
-SELECT Id, Company, Salary FROM
-(SELECT Id, Company, Salary, COUNT(Salary) OVER (PARTITION BY Company) AS CN,
-ROW_NUMBER() OVER (PARTITION BY Company ORDER BY Salary) AS RN FROM Employee) T
-WHERE RN = (CN+1)/2 OR RN = (CN+2)/2
-```
+
 
 
 # 534. Game Play Analysis III
@@ -435,6 +428,93 @@ python
 world = World[(world['area'] > 3000000) or (world['population'] > 25000000)]
 world.sort_values(by=[‘name’])
 ```
+
+# 569. Median Employee Salary
+sql
+```sql
+SELECT Id, Company, Salary FROM
+(SELECT Id, Company, Salary, COUNT(Salary) OVER (PARTITION BY Company) AS CN,
+ROW_NUMBER() OVER (PARTITION BY Company ORDER BY Salary) AS RN FROM Employee) T
+WHERE RN = (CN+1)/2 OR RN = (CN+2)/2
+```
+# 570. Managers with at Least 5 Direct Reports
+sql
+```sql
+select Name 
+from Employee
+where Id in (select ManagerId
+            from Employee
+            group by ManagerId
+            having count(distinct Id) >= 5
+	    
+#v2:self join 
+select e2.Name
+from employee e1, employee e2
+where e1.ManagerId = e2.Id
+group by e2.Id
+having count(*)  >= 5 	    
+```
+python
+```python
+dat = Employee.groupby(['ManagerId'])['Id'].nunique().to_frame('count')
+dat1 = Employee[Employee.Id.isin(dat[dat['count'] >= 5].index)].Name
+```
+# 571. Find Median Given Frequency of Numbers
+sql
+```sql
+#建两个累计频率，用员工薪水中位数的思路来做
+select
+avg(t.number) as median
+from
+(
+select
+n1.number,
+n1.frequency,
+(select sum(frequency) from numbers n2 where n2.number<=n1.number) as asc_frequency,
+(select sum(frequency) from numbers n3 where n3.number>=n1.number) as desc_frequency
+from numbers n1
+) t
+where t.asc_frequency>= (select sum(frequency) from numbers)/2
+and t.desc_frequency>= (select sum(frequency) from numbers)/2
+```
+
+# 574. Winning Candidate
+sql
+```sql
+select Name 
+from Candidate
+where id in (
+    select CandidateId
+    from Vote
+    group by CandidateId
+    having count(distinct id) >= all(select count(distinct id)
+                                    from Vote
+                                    group by CandidateId))
+```				    
+python
+```python
+dat = Vote.groupby(['CandidateId'])['id'].nunique().to_frame('count').reset_index
+max = dat['count'].max()
+Candidate[Candidate.id.isin[dat[dat['count'] >= max].CandidateId]].Name
+```
+# 578. Get Highest Answer Rate Question
+sql
+```sql
+select question_id as survey_log
+from 
+(select question_id, sum(case when action = 'answer' then 1 else 0 end)/sum(case when action = 'show' then 1 else 0 end) as rate
+        from survey_log
+        group by question_id) s
+order by rate desc
+limit 1 
+```
+
+python 
+```python
+dat = survey_log.groupby(['question_id'])['action'].value_counts().to_frame('count').reset_index()
+...???
+```
+
 # 596. Classes More Than 5 Students
 sql
 ```sql

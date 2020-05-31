@@ -51,7 +51,7 @@ WHERE rank_num = 2
 
 python
 ```python
-employee['salary_rank'] = employee['Salary'].rank(method = 'dense', ascending = 0)
+
 employee['Salary'].drop_duplicates().loc[employee['salary_rank'] == 1]
 ```
 
@@ -138,7 +138,12 @@ order by a.Score DESC
 ```
 python
 ```python
-Scores['rank'] = Scores['Score'].rank(method = 'dense', ascending = 0)
+Scores['rank'] = Scores['Score'].rank(
+
+
+
+
+= 'dense', ascending = 0)
 Scores[['rank','Score']].sort_values(by= ['rank'])
 ```
 
@@ -515,6 +520,92 @@ dat = survey_log.groupby(['question_id'])['action'].value_counts().to_frame('cou
 ...???
 ```
 
+# 579. Find Cumulative Salary of an Employee
+sql
+```sql
+#v1: window function
+select Id, Month, total_salary as salary
+from (select *, 
+            sum(Salary) over (partition by Id order by Month rows 2 preceding) as total_salary,
+            row_number() over (partition by Id order by Month desc) as RN
+        from Employee) E
+where RN > 1
+order by Id, Month desc
+
+#v2: self join and exclude max value
+select e1.Id, e1.Month, sum(e2.Salary) as Salary
+from Employee e1 join Employee e2
+on e1.Id = e2.Id
+    and e1.Month >= e2.Month
+    and e1.Month < e2.Month + 3
+where (e1.Id,e1.Month) not in (select Id, max(Month) as Month from Employee group by Id) 
+group by e1.Id, e1.Month
+order by e1.Id, e1.Month desc
+```
+
+python
+```python
+???
+```
+# 580. Count Student Number in Departments
+sql
+```sql
+select d.dept_name, ifnull(count(distinct s.student_id),0) as student_number
+from student s right join department d on d.dept_id = s.dept_id
+group by d.dept_id
+order by student_number desc
+```
+
+python
+```python
+dat = student.merge(department,how = 'right', left_on = 'dept_id', right_on = 'dept_id' )
+dat1 = dat.groupby(['dept_name'])['student_id'].nunique().to_frame('student_number').reset_index()
+dat1 = dat1.sort_values(by=[‘student_number’],asending = 0)
+```
+
+# 585. Investments in 2016
+sql
+```sql
+select sum(TIV_2016) as TIV_2016
+from insurance
+where concat(lat,lon) in (select concat(lat,lon)
+                            from insurance 
+                            group by concat(lat,lon)
+                            having count(concat(lat,lon)) <= 1)
+                    and 
+         tiv_2015 in (select tiv_2015 
+                           from insurance
+                           group by tiv_2015
+                           having count(tiv_2015) > 1) 
+
+```
+
+python 
+```python
+insurance['concat'] = insurance['lat'].astype(str) + insurance['lon'].astype(str)
+#v2: insurance['concat'] = insurance.lat.str.cat(df.lon.str)
+dat1 = insurance.groupby(['concat']).count().to_frame('count').reset_index
+dat1 = dat1[dat1['count'] <= 1]
+dat2 = insurance.groupby(['tiv_2015']).count().to_frame('count').reset_index
+dat2 = dat1[dat1['tiv_2015'] > 1]
+dat3 = insurance[(insurance.concat.isin(dat1['concat'])) & (insurance.tiv_2015.isin(dat2['tiv_2015']))]
+dat3.TIV_2016.sum()
+```
+# 597. Friend Requests I: Overall Acceptance Rate
+sql
+```sql
+select round(ifnull(count(distinct b.requester_id, b.accepter_id)/count(distinct a.sender_id, a.send_to_id),0), 2) accept_rate 
+from friend_request a, request_accepted b
+
+select round(
+    ifnull(
+    (select count(distinct requester_id ,accepter_id) from request_accepted) / 
+    (select count(distinct sender_id ,send_to_id) from friend_request)
+    ,0)
+    ,2) as accept_rate ;
+```
+
+
 # 596. Classes More Than 5 Students
 sql
 ```sql
@@ -557,6 +648,118 @@ dat1 = dat.groupby(['offset']).count().to_frame('count').reset_index
 data = pd.merge(dat, dat1, how = 'left', left_on = 'offset', right_on = 'offset')
 data[data['count'] >= 3].sort_values(by=[‘id’])
 ```
+
+# 602. Friend Requests II: Who Has the Most Friends
+sql
+```sql
+select accepter_id as id,sum(num) as num
+from
+    ((select accepter_id, count(*) as num
+    from request_accepted
+    group by accepter_id) 
+    union all 
+    (select requester_id, count(*) as num
+    from request_accepted
+    group by requester_id))  a
+group by accepter_id
+order by sum(num) desc
+limit 1 
+```
+
+python
+```python
+dat1 = request_accepted.groupby(['accepter_id'])['accepter_id'].count().to_frame('num').reset_index()
+dat2 = request_accepted.groupby(['requester_id'])['requester_id'].count().to_frame('num').reset_index()
+dat = pd.concat([dat1,dat2.rename(columns={'requester_id':'accepter_id'})])
+dat = dat.groupby(['accepter_id'])['num'].sum().to_frame('num').reset_index()
+dat = dat.sort_values(by = ['num'],ascending = 0)
+head(dat,1)
+```
+
+# 608. Tree Node
+sql
+```sql
+select id, (case when p_id is null then 'Root'
+                when id in (select p_id from tree) then 'Inner'
+                else 'Leaf' end) as Type
+from tree
+```
+python 
+```python
+tree.loc[tree['p_id'].isnull(),'type'] = 'Root'
+tree.loc[(tree.id.isin(tree['p_id'])) & (tree['p_id'].notnull()),'type'] = 'Inner'
+tree.loc[tree['type'].isnull(),'type'] = 'Leaf'
+```
+
+# 612. Shortest Distance in a Plane
+sql
+```sql
+select round(min(sqrt(POWER((p1.x-p2.x),2) + POWER((p1.y-p2.y),2))),2) as shortest
+from point_2d p1 join point_2d p2 on (p1.x,p1.y) <> (p2.x, p2.y)
+```
+
+# 615. Average Salary: Departments VS Company
+sql
+```sql
+select c.pay_month,c.department_id,
+case 
+    when c.salary_d>d.salary_c then 'higher'
+    when c.salary_d<d.salary_c then 'lower'
+    else 'same'
+    end 'comparison'
+from 
+(
+ select date_format(a.pay_date,'%Y-%m') pay_month,b.department_id,
+avg(a.amount) salary_d from salary a 
+join employee b 
+on a.employee_id=b.employee_id
+group by date_format(a.pay_date,'%Y-%m'),b.department_id   
+) c
+inner join 
+(
+select date_format(a.pay_date,'%Y-%m') pay_month,b.department_id,
+avg(a.amount) salary_c from salary a 
+ join employee b 
+on a.employee_id=b.employee_id
+group by date_format(a.pay_date,'%Y-%m')
+) d 
+on c.pay_month=d.pay_month;
+```
+python
+```python
+
+```
+# 618. Students Report By Geography
+sql
+```sql
+select max(case when continent = 'America' then name else null end) as America,
+        max(case when continent = 'Asia' then name else null end) as Asia,
+         max(case when continent = 'Europe' then name else null end) as Europe
+from
+    (select 
+        name, 
+        continent, 
+        row_number()over(partition by continent order by name) cur_rank
+    from
+        student)t 
+group by cur_rank
+```
+python need to correct
+```python
+student.groupby(['continent'])['name'].str().rank(method = 'frist') # error: 'NoneType' object is not callable
+Output = student.pivot(index= 'rank', columns= 'continent', values= 'name')
+```
+# 619. Biggest Single Number
+sql
+```sql
+select max(num) as num
+from
+(select num
+from my_numbers
+group by num 
+having count(num) = 1) a
+```
+
 
 # 620. Not Boring Movies
 sql
@@ -628,6 +831,22 @@ python
 salary.sex[salary.sex == 'm'] = 'f'
 salary.sex[salary.sex == 'f'] = 'm'
 ```
+
+# 1045. Customers Who Bought All Products
+sql
+```sql
+select t1.customer_id
+from (select customer_id, count(distinct product_key) cnt from customer group by customer_id) t1, (select count(*) cnt from product) t2
+where t1.cnt = t2.cnt
+
+select c.customer_id
+from Product p left join Customer c on p.product_key = c.product_key
+where p.product_key = 5
+      and c.customer_id in (select c.customer_id
+from Product p left join Customer c on p.product_key = c.product_key where p.product_key = 6)
+order by customer_id
+```
+
 
 
 

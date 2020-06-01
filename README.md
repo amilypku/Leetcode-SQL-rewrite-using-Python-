@@ -846,9 +846,67 @@ where p.product_key = 5
 from Product p left join Customer c on p.product_key = c.product_key where p.product_key = 6)
 order by customer_id
 ```
+# 1098. Unpopular Books
+sql
+```sql
+select b.book_id, b.name
+from Books b left join Orders o on b.book_id = o.book_id
+where b.book_id in (select book_id 
+                        from Books 
+                         where datediff(month, available_from, '2019-06-23') > 1)
+group by b.book_id, b.name
+having isnull(sum(case when o.dispatch_date < '2018-06-23' then 0 else quantity end),0) < 10  
+order by b.book_id
+```
+
+# 1107. New Users Daily Count
+sql
+```sql
+#mysql
+select login_date,count(user_id) user_count
+from (select user_id, min(activity_date) login_date from Traffic
+where activity='login'
+group by user_id) t
+where datediff('2019-06-30',login_date)<=90
+group by login_date;
 
 
+#sql server
+SELECT
+    login_date,
+    COUNT(DISTINCT user_id) user_count
+FROM
+    (SELECT
+        user_id, 
+        MIN(activity_date) OVER(PARTITION BY user_id) login_date
+    FROM Traffic
+    WHERE activity = 'login') t
+WHERE datediff(day,login_date,'2019-06-30') <= 90 
+GROUP BY login_date
+ORDER BY login_date
 
+select activity_date as login_date, count(distinct user_id) as user_count 
+from (select *,
+        row_number() over (partition by user_id order by activity_date) as rn
+        from (select * from Traffic where activity = 'login')a) A 
+where rn = 1 and datediff(day,activity_date,'2019-06-30') <= 90 
+group by activity_date
+```
+we can't use row_number to select first user activity here since there are some users' first activity are not log in.
+wrong answer:
+```sql
+select activity_date as login_date, count(distinct user_id) as user_count 
+from (select *,
+        row_number() over (partition by user_id order by activity_date) as rn
+        from Traffic) A 
+where rn = 1 and datediff(day,activity_date,'2019-06-30') <= 90 
+group by activity_date
+```
+
+# 1112. Highest Grade For Each Student
+sql
+```sql
+```
 
 
 

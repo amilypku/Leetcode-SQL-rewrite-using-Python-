@@ -920,7 +920,27 @@ group by activity_date
 # 1112. Highest Grade For Each Student
 sql
 ```sql
+#window function
+select student_id, course_id, grade
+from (select *,
+        rank() over (partition by student_id order by grade desc, course_id) as rn
+    from Enrollments) S
+where rn = 1
+order by student_id
+
+#sql
+SELECT student_id, MIN(course_id) AS course_id, grade
+FROM Enrollments
+WHERE (student_id, grade) IN (SELECT student_id, MAX(grade)
+                              FROM Enrollments
+                              GROUP BY student_id)
+GROUP BY student_id
+ORDER BY student_id
 ```
+
+python 
+```python
+
 
 
 

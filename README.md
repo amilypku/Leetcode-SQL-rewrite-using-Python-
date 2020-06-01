@@ -162,6 +162,20 @@ from (
 ) tmp
 group by rn,num
 having count(rn)>=3;
+
+#lead and lag solutions
+with x as
+(select id,
+lead(Num,1,0) over (order by id asc) Lead,
+lag(Num,1,0) over (order by id asc) Lag
+from Logs
+)
+
+select
+distinct Num as "ConsecutiveNums"
+from
+Logs L
+join x y on L.id = y.id and y.Lead = L.Num and y.Lag = L.Num;
 ```
 
 python 

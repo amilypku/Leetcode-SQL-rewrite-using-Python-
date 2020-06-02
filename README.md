@@ -1077,6 +1077,26 @@ dat.groupby(['activity_date'])['user_id'].nunique().to_frame('active_users').res
 
 
 
+# 1142. User Activity for the Past 30 Days II
+sql
+```sql
+# 为空的时候一定要显示一个0，注意一下。
+select ifnull(round(count(distinct session_id)/count(distinct user_id),2), 0)  average_sessions_per_user
+from activity
+where datediff('2019-07-27', activity_date) < 30
+
+#v2
+select ifnull(round(sum(t.amount)/count(user_id),2), 0)  average_sessions_per_user
+from
+(select user_id, count(distinct session_id) amount
+from activity
+where datediff('2019-07-27', activity_date) < 30
+group by user_id) t
+```
+
+
+
+
 
 
 

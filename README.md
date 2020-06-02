@@ -1061,6 +1061,19 @@ and activity_date <= '2019-07-27'
 group by activity_date
 ```
 
+python
+```python
+def daysdiff(d1, d2):
+    d1 = datetime.strptime(d1, "%Y-%m-%d")
+    d2 = datetime.strptime(d2, "%Y-%m-%d")
+    return (d1 - d2).days
+
+import datetime as dt
+activity['activity_date']] = pd.to_datetime(activity['activity_date'])
+activity['day'] = (dt.strptime('2019-07-27', "%Y-%m-%d") - activity['activity_date']).dt.days
+dat = activity[activity['day'] < 30]
+dat.groupby(['activity_date'])['user_id'].nunique().to_frame('active_users').reset_index()
+```
 
 
 

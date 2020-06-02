@@ -940,6 +940,129 @@ ORDER BY student_id
 
 python 
 ```python
+Enrollments['rn'] = Enrollments.groupby(['student_id'])['grade'].rank(method = 'dense', ascending = 0)
+indice = Enrollments[Enrollments['rn'] == 1].groupby(['student_id'])['course_id'].idxmin # cannot work
+#after grouping to minimum value in pandas, how to display the matching row result entirely along min() value
+https://datascience.stackexchange.com/questions/26308/after-grouping-to-minimum-value-in-pandas-how-to-display-the-matching-row-resul
+need to figure out why
+```
+
+# 1126. Active Businesses
+sql
+```sql
+#v1
+select business_id
+from(select e1.business_id, e1.event_type, (case when e1.occurences > e2.avg then 1 else 0 end) as count
+    from Events e1 left join (select event_type, avg(occurences) as avg from Events group by event_type) e2 
+            on e1.event_type = e2.event_type) e
+group by business_id
+having sum(count) > 1
+
+#v2
+select business_id
+from events e,
+(select event_type,avg(occurences) avg_occ
+from events
+group by event_type) temp
+where e.event_type = temp.event_type and e.occurences > temp.avg_occ
+group by e.business_id
+having count(*) > 1
+
+#v3
+select business_id
+from Events e left join (
+    select event_type, avg(occurences) as tavg
+    from Events
+    group by event_type
+)t on e.event_type = t.event_type
+group by business_id
+having sum(case when e.occurences > t.tavg then 1 else 0 end) >1
+```
+
+python
+```python
+```
+
+# 1127. User Purchase Platform
+sql
+```sql
+select t2.spend_date, t2.platform, 
+ifnull(sum(amount),0) total_amount, ifnull(count(user_id),0) total_users
+from
+(select distinct spend_date, "desktop" as platform from Spending
+union
+select distinct spend_date, "mobile" as platform from Spending
+union
+select distinct spend_date, "both" as platform from Spending 
+) t2
+left join
+(select spend_date, sum(amount) amount, user_id, 
+case when count(*) = 1 then platform else "both" end as platform
+from Spending 
+group by spend_date, user_id) t1
+on t1.spend_date = t2.spend_date
+and t1.platform = t2. platform
+group by t2.spend_date, t2.platform
+```
+
+python
+```python
+spending[‘mobile_spend’] = spending[spending.channel == ‘mobile’].spend
+spending[‘desktop_spend’] = spending[spending.channel == ‘desktop’].spend
+member_spend = spending.group_by([‘date’, ‘member_id’]).sum([‘mobile_spend’, ‘desktop_spend’]).to_frame([‘mobile_spend’, ‘desktop_spend’]).reset_index()
+
+member_spend.loc[(member_spend.mobile_spend>0) & (member_spend.desktop_spend==0), ‘channel’] = ‘mobile’
+member_spend.loc[member_spend.mobile_spend==0 & member_spend.desktop_spend>0, ‘channel’] = ‘desktop’
+member_spend.loc[member_spend.mobile_spend>0 & member_spend.desktop_spend>0, ‘channel’] = ‘both’
+
+tot_members = member_spend.groupby([‘date’, ‘channel’]).size().to_frame(‘tot_members’).reset_index()
+tot_spend = member_spend.groupby([‘date’, ‘channel’].agg({‘mobile_spend’:sum, ‘desktop_spend’:sum}).to_frame([‘mobile_spend’, ‘desktop_spend’])
+tot_spend[‘tot_spend’] = tot_spend[‘mobile_spend’] + tot_spend[‘desktop_spend’]
+output = tot_members.concat(tot_spend[‘tot_spend’])
+```
+# 1132. Reported Posts II
+sql
+```sql
+# count will not count null values
+select round(100*avg(percent),2) as average_daily_percent
+from (select a.action_date, count(distinct(r.post_id))/count(distinct(a.post_id))  as percent
+        from Removals r right join Actions a on r.post_id = a.post_id
+        where extra = 'spam' 
+        group by a.action_date) P
+	
+#the version blow is wrong since there are duplicate post_id in one day. If I count with case when, I cannot count distinct post_id.
+select round(100*avg(percent),2) as average_daily_percent
+from (select a.action_date, sum(case when r.post_id is null then 0 else 1 end)/count(distinct a.post_id) as percent
+        from Removals r right join Actions a on r.post_id = a.post_id
+        where extra = 'spam' 
+        group by a.action_date) P
+```
+
+python
+```python
+#count distinct with group by: two solutions
+df.groupby("date").agg({"duration": np.sum, "user_id": pd.Series.nunique})
+df.groupby("date").agg({"duration": np.sum, "user_id": lambda x: x.nunique()})
+```
+
+# 1141. User Activity for the Past 30 Days I
+sql
+```sql
+# 一定注意日期差是29天 <30.........包含2019-07-27本天
+select activity_date day, count(distinct user_id) active_users
+from activity
+where datediff('2019-07-27', activity_date) < 30
+group by activity_date
+
+select activity_date day, count(distinct user_id) active_users
+from activity
+where activity_date > date_sub('2019-07-27', interval 30 day)
+and activity_date <= '2019-07-27'
+group by activity_date
+```
+
+
+
 
 
 

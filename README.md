@@ -1170,5 +1170,48 @@ ON
 ```
 python
 ```python
+Orders['rn'] = Orders.groupby(['seller_id'])['order_date'].rank(method = 'first')
+dat = pd.merge[Users, Orders, left_on = 'user_id',right_on = 'seller_id', how = 'left']
+dat = dat[dat['rn'] == 2]
+dat1 = pd.merge[dat, Items, left_on = 'item_id', right_on = 'item_id', how = 'left']
+#case when 
+dat1.loc[(dat1.favorite_brand == dat1.item_brand),'2nd_item_fav_brand'] = 'Yes'
+dat1.loc[(dat1.favorite_brand != dat1.item_brand),'2nd_item_fav_brand'] = 'No'
+
+dat1[['seller_id','2nd_item_fav_brand' ]]
+```
+
+# 1164. Product Price at a Given Date
+sql
+```sql
+(select product_id, new_price as price
+from (select *, 
+            row_number() over(partition by product_id order by datediff(day,change_date,'2019-08-16')) as rn
+    from Products
+    where datediff(day,change_date,'2019-08-16')>= 0) s
+where rn = 1)
+union 
+(select product_id as product_id,10 as price 
+from Products 
+group by product_id
+having min(change_date)>'2019-08-16')
+
+#v2:
+(select product_id as product_id,10 as price 
+from Products 
+group by product_id
+having min(change_date)>'2019-08-16')
+union
+(select product_id,new_price as price 
+from Products 
+where (product_id,change_date) in
+                                (select product_id,max(change_date) as max_date
+                                 from Products
+                                 where change_date<='2019-08-16'
+                                 group by product_id))
+```
+
+python
+```python
 
 ```

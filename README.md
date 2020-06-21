@@ -1094,9 +1094,20 @@ where datediff('2019-07-27', activity_date) < 30
 group by user_id) t
 ```
 
+# 1149. Article Views II
+oracle sql
+```sql
+#v1: out of time
+select distinct viewer_id as id
+from Views 
+group by viewer_id, view_date 
+having count(distinct article_id) > 1
+order by viewer_id
+```
 
-
-
+python
+```python 
+Views
 
 
 

@@ -1213,5 +1213,32 @@ where (product_id,change_date) in
 
 python
 ```python
+Products['change_date'] = Products['change_date'].apply(lambda x: datetime.strptime(x, '%Y%m%d'))
+def daysdiff(d1, d2):
+    d1 = datetime.strptime(d1, "%Y-%m-%d")
+    d2 = datetime.strptime(d2, "%Y-%m-%d")
+    return (d1 - d2).days
 
+import datetime as dt
+Products['day'] = (dt.strptime('2019-08-16', "%Y-%m-%d") - Products['change_date']).dt.days
+Products1 = Products[Products['day'] >= 0]
+Products1['rn'] = Products1.groupby(['product_id'])['day'].rank(method = first)
+dat1 = Products1[Products1['rn'] == 1][['product_id', 'new_price']]
+
+dat2 = Products.groupby(['product_id'])['change_date'].min().to_frame('min').reset_index()
+dat2 = dat2[dat2['min'] >'2019-08-16'][product_id] #should change to date 
+dat2['price'] = 10
+pd.concat(dat1,dat2)
+```
+
+# 1174. Immediate Food Delivery II
+sql
+```sql
+#v1:
+select round(100*sum(case when order_date=customer_pref_delivery_date then 1 else 0 end)/sum(1),2)immediate_percentage
+from Delivery
+where (customer_id,order_date) in
+(select customer_id,min(order_date) mindate
+from Delivery
+group by customer_id)
 ```

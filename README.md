@@ -1107,8 +1107,28 @@ order by viewer_id
 
 python
 ```python 
-Views
+dat = Views.groupby(['viewer_id','view_date']).nunique().to_frame('count').reset_index()
+dat[dat['count'] > 1]['viewer_id'].drop_duplicates().sort_values(by = 'viewer_id')
+```
 
+# 1158. Market Analysis I
+sql
+```sql
+select u.user_id as buyer_id, u.join_date, count(distinct order_id) as orders_in_2019
+from Users u left join Orders o on u.user_id = o.buyer_id and year(o.order_date) =2019
+group by u.user_id
+
+#v2
+select user_id buyer_id, join_date,
+sum(if(year(order_date)='2019',1,0)) orders_in_2019
+from users left join orders
+on user_id = buyer_id
+group by user_id
+```
+
+```python
+
+```
 
 
 

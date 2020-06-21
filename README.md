@@ -1127,8 +1127,48 @@ group by user_id
 ```
 
 ```python
-
+df = pd.merge(Users,Orders,left_on = ['user_id'], right_on = ['buyer_id'], how = 'left')
+df['date'] = pd.to_datetime(df['order_date'])
+df['year'] = df['date'].dt.year
+df['month'] = df['date'].dt.month
+dat = df[df['year'] == 2019 ]
+dat.groupby(['user_id','join_date'])['order_id'].nunique().to_frame('orders_in_2019').reset_index()
 ```
 
+# 1159. Market Analysis II
+error message I met for this query:
+```sql
+select o.seller_id, (case when u.favorite_brand = i.item_brand then 'yes' else 'no' end) as '2nd_item_fav_brand'
+from 
+    (select u.user_id, o.seller_id, u.favorite_brand, i.item_brand,
+        row_number() over (partition by seller_id order by order_date) as rn
+    from Users u left join Orders o on u.user_id = o.seller_id join Items i 
+    on o.item_id = i.item_id) s 
+where rn = 2
+```
+error message:[SQL Server]The multi-part identifier "o.seller_id" could not be bound. (4104) 
+reasons: https://stackoverflow.com/questions/7314134/the-multi-part-identifier-could-not-be-bound
 
+sql
+```sql
+SELECT
+    u.user_id seller_id,
+    (case when u.favorite_brand = i.item_brand 
+    then 'yes'
+    else 'no'
+    end) '2nd_item_fav_brand' 
+FROM
+    Users u left join 
+    (SELECT seller_id,item_id,row_number() over (partition by seller_id order by order_date)
+    as ranking FROM Orders) t
+ON 
+    u.user_id = t.seller_id and ranking =2
+LEFT JOIN Items i 
+ON 
+    t.item_id = i.item_id
+#烦死了这道题，又简单又出错，气死，晚点再看
+```
+python
+```python
 
+```
